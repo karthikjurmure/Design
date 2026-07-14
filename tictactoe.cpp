@@ -176,7 +176,7 @@ public:
       board->display();
 
       cout << "\n" << current->getName() << " turn\n";
-
+      notify("Playing : "+current->getName());
       int r, c;
 
       cin >> r >> c;
