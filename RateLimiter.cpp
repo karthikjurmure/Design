@@ -8,7 +8,6 @@
 
 using namespace std;
 
-// ===================== ENUMS =====================
 
 enum class UserTier { FREE, PREMIUM };
 
@@ -17,8 +16,6 @@ enum class RateLimitType {
     FIXED_WINDOW,
     SLIDING_WINDOW_LOG
 };
-
-// ===================== MODELS =====================
 
 class User {
     string userId;
@@ -39,7 +36,6 @@ public:
     int getWindowInSeconds() const { return windowInSeconds; }
 };
 
-// ===================== BASE =====================
 
 class RateLimiter {
 protected:
@@ -52,7 +48,6 @@ public:
     virtual bool allowRequest(const string& userId)=0;
 };
 
-// ===================== TOKEN BUCKET =====================
 
 class TokenBucketRateLimiter : public RateLimiter {
     unordered_map<string,int> tokens;
@@ -98,7 +93,6 @@ public:
     }
 };
 
-// ===================== FIXED WINDOW =====================
 
 class FixedWindowRateLimiter : public RateLimiter {
 
@@ -136,7 +130,6 @@ public:
     }
 };
 
-// ===================== SLIDING WINDOW LOG =====================
 
 class SlidingWindowLogRateLimiter : public RateLimiter {
 
@@ -169,7 +162,6 @@ public:
     }
 };
 
-// ===================== FACTORY =====================
 
 class RateLimiterFactory{
 
@@ -196,7 +188,6 @@ public:
     }
 };
 
-// ===================== SERVICE =====================
 
 class RateLimiterService{
 
@@ -224,7 +215,6 @@ public:
     }
 };
 
-// ===================== MAIN =====================
 
 int main(){
 
