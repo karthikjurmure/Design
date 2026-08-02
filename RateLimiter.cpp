@@ -53,27 +53,28 @@ class TokenBucketRateLimiter : public RateLimiter {
     unordered_map<string,int> tokens;
     unordered_map<string,long long> lastRefill;
 
-    int refillTokens(const string& userId,long long now){
-        double refillRate=(double)config.getWindowInSeconds()/config.getMaxRequests();
-
-        if(lastRefill.find(userId)==lastRefill.end())
-            lastRefill[userId]=now;
-
-        long long elapsed=(now-lastRefill[userId])/1000;
-
-        int refill=(int)(elapsed/refillRate);
-
-        int current=tokens.count(userId)?
-                    tokens[userId]:
-                    config.getMaxRequests();
-
-        current=min(config.getMaxRequests(),current+refill);
-
-        if(refill>0)
-            lastRefill[userId]=now;
-
-        return current;
+int refillTokens(const string& userId, long long now) {
+    if (lastRefill.find(userId) == lastRefill.end()) {
+        lastRefill[userId] = now;
+        tokens[userId] = config.getMaxRequests();
+        return tokens[userId];
     }
+
+    long long elapsedMs = now - lastRefill[userId];
+    double windowMs = config.getWindowInSeconds() * 1000.0;
+    
+    // How many tokens generated during elapsed time
+    int refill = (int)(elapsedMs * config.getMaxRequests() / windowMs);
+
+    if (refill > 0) {
+        tokens[userId] = min(config.getMaxRequests(), tokens[userId] + refill);
+        // Only advance timestamp by the duration that generated whole tokens
+        long long consumedMs = (refill * windowMs) / config.getMaxRequests();
+        lastRefill[userId] += consumedMs;
+    }
+
+    return tokens[userId];
+}
 
 public:
     TokenBucketRateLimiter(const RateLimitConfig& c)
