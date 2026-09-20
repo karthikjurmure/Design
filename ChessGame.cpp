@@ -184,8 +184,19 @@ public:
       cout << "Invalid move!\n";
       return false;
     }
-    grid[end.row][end.col].piece = piece;
-    grid[start.row][start.col].piece = nullptr;
+    auto target = grid[end.row][end.col].piece;
+
+    // 4. If destination contains same-color piece,
+    //    you cannot capture it
+    if (target && target->getColor() == piece->getColor()) {
+        cout << "Cannot capture your own piece!\n";
+        return false;
+    }
+
+    // 5. If target exists, it belongs to opponent
+    if (target) {
+        cout << "Piece captured!\n";
+    }
     return true;
   }
 };
