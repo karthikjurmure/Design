@@ -10,7 +10,6 @@
 <img width="1536" height="1024" alt="Car Rental UML Class Diagram" src="https://github.com/user-attachments/assets/1e373f45-8d61-4062-a418-d7799df90ed0" />
 <img width="1536" height="1024" alt="SplitWise Expense Sharing UML Diagram" src="https://github.com/user-attachments/assets/5642de28-b67f-4e08-b6ca-e127f6853107" />
 <img width="1536" height="1024" alt="Rate Limiter UML Class Diagram" src="https://github.com/user-attachments/assets/4a4dfd79-be10-494f-8218-e011ae8548be" />
-<img width="1536" height="1024" alt="Movie Ticket Booking UML Class Diagram" src="https://github.com/user-attachments/assets/e48d1d52-028d-436d-b563-2ec3740fcb4e" />
 <img width="1520" height="2129" alt="image" src="https://github.com/user-attachments/assets/768060b0-86c6-4b58-9458-a7d11145960e" />
 
 <img width="1536" height="1024" alt="Logging System UML Design Patterns" src="https://github.com/user-attachments/assets/b64d1a23-2008-46ed-b521-64cbd9aadc84" />
