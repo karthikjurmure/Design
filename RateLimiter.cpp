@@ -1,129 +1,85 @@
+
 #include <iostream>
 #include <unordered_map>
 #include <queue>
 #include <memory>
 #include <chrono>
 #include <algorithm>
-#include <string>
-
 using namespace std;
 
-
+// ---------- ENUMS ----------
 enum class UserTier { FREE, PREMIUM };
+enum class RateLimitType { TOKEN_BUCKET, FIXED_WINDOW, SLIDING_WINDOW_LOG };
 
-enum class RateLimitType {
-    TOKEN_BUCKET,
-    FIXED_WINDOW,
-    SLIDING_WINDOW_LOG
-};
-
+// ---------- USER ----------
 class User {
-    string userId;
+    string id;
     UserTier tier;
+
 public:
-    User(const string& id, UserTier t): userId(id), tier(t) {}
-    string getUserId() const { return userId; }
+    User(string id, UserTier tier) : id(id), tier(tier) {}
+
+    string getId() const { return id; }
     UserTier getTier() const { return tier; }
 };
 
+// ---------- CONFIG ----------
 class RateLimitConfig {
-    int maxRequests;
-    int windowInSeconds;
 public:
-    RateLimitConfig(int maxReq,int window):
-        maxRequests(maxReq),windowInSeconds(window){}
-    int getMaxRequests() const { return maxRequests; }
-    int getWindowInSeconds() const { return windowInSeconds; }
+    int maxRequests, windowSeconds;
+
+    RateLimitConfig(int maxReq, int window)
+        : maxRequests(maxReq), windowSeconds(window) {}
 };
 
+// Current time in milliseconds
+long long nowMs() {
+    return chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now().time_since_epoch()
+    ).count();
+}
 
+// ---------- STRATEGY INTERFACE ----------
 class RateLimiter {
 protected:
     RateLimitConfig config;
-    RateLimitType type;
+
 public:
-    RateLimiter(const RateLimitConfig& c, RateLimitType t)
-        : config(c), type(t) {}
+    RateLimiter(RateLimitConfig c) : config(c) {}
     virtual ~RateLimiter() = default;
-    virtual bool allowRequest(const string& userId)=0;
+
+    virtual bool allowRequest(string userId) = 0;
 };
 
-
-class TokenBucketRateLimiter : public RateLimiter {
-    unordered_map<string,int> tokens;
-    unordered_map<string,long long> lastRefill;
-
-int refillTokens(const string& userId, long long now) {
-    if (lastRefill.find(userId) == lastRefill.end()) {
-        lastRefill[userId] = now;
-        tokens[userId] = config.getMaxRequests();
-        return tokens[userId];
-    }
-
-    long long elapsedMs = now - lastRefill[userId];
-    double windowMs = config.getWindowInSeconds() * 1000.0;
-    
-    // How many tokens generated during elapsed time
-    int refill = (int)(elapsedMs * config.getMaxRequests() / windowMs);
-
-    if (refill > 0) {
-        tokens[userId] = min(config.getMaxRequests(), tokens[userId] + refill);
-        // Only advance timestamp by the duration that generated whole tokens
-        long long consumedMs = (refill * windowMs) / config.getMaxRequests();
-        lastRefill[userId] += consumedMs;
-    }
-
-    return tokens[userId];
-}
+// ---------- 1. TOKEN BUCKET ----------
+class TokenBucket : public RateLimiter {
+    unordered_map<string, double> tokens;
+    unordered_map<string, long long> lastTime;
 
 public:
-    TokenBucketRateLimiter(const RateLimitConfig& c)
-        : RateLimiter(c,RateLimitType::TOKEN_BUCKET){}
+    TokenBucket(RateLimitConfig c) : RateLimiter(c) {}
 
-    bool allowRequest(const string& userId) override{
-        long long now=chrono::duration_cast<chrono::milliseconds>(
-                chrono::system_clock::now().time_since_epoch()).count();
+    bool allowRequest(string id) override {
+        long long now = nowMs();
+        double windowMs = config.windowSeconds * 1000.0;
 
-        int current=refillTokens(userId,now);
-
-        if(current>0){
-            tokens[userId]=current-1;
-            return true;
-        }
-        return false;
-    }
-};
-
-
-class FixedWindowRateLimiter : public RateLimiter {
-
-    unordered_map<string,int> requestCount;
-    unordered_map<string,long long> windowStart;
-
-public:
-
-    FixedWindowRateLimiter(const RateLimitConfig& c)
-        : RateLimiter(c,RateLimitType::FIXED_WINDOW){}
-
-    bool allowRequest(const string& userId) override{
-
-        long long currentWindow=
-            chrono::duration_cast<chrono::seconds>(
-                chrono::system_clock::now().time_since_epoch()
-            ).count()/config.getWindowInSeconds();
-
-        if(windowStart.find(userId)==windowStart.end()){
-            windowStart[userId]=currentWindow;
-            requestCount[userId]=0;
+        // First request: initialize a full bucket
+        if (!lastTime.count(id)) {
+            tokens[id] = config.maxRequests;
+            lastTime[id] = now;
         }
 
-        if(windowStart[userId]!=currentWindow){
-            windowStart[userId]=currentWindow;
-            requestCount[userId]=0;
-        }
+        // Refill tokens gradually
+        double elapsed = now - lastTime[id];
+        tokens[id] = min(
+            (double)config.maxRequests,
+            tokens[id] + elapsed * config.maxRequests / windowMs
+        );
+        lastTime[id] = now;
 
-        if(requestCount[userId]<config.getMaxRequests()){
-            requestCount[userId]++;
+        // Consume one token
+        if (tokens[id] >= 1) {
+            tokens[id]--;
             return true;
         }
 
@@ -131,31 +87,26 @@ public:
     }
 };
 
-
-class SlidingWindowLogRateLimiter : public RateLimiter {
-
-    unordered_map<string,queue<long long>> requestLog;
+// ---------- 2. FIXED WINDOW ----------
+class FixedWindow : public RateLimiter {
+    unordered_map<string, int> count;
+    unordered_map<string, long long> window;
 
 public:
+    FixedWindow(RateLimitConfig c) : RateLimiter(c) {}
 
-    SlidingWindowLogRateLimiter(const RateLimitConfig& c)
-        : RateLimiter(c,RateLimitType::SLIDING_WINDOW_LOG){}
+    bool allowRequest(string id) override {
+        long long now = nowMs() / 1000;
+        long long currentWindow = now / config.windowSeconds;
 
-    bool allowRequest(const string& userId) override{
+        // Reset count when the window changes
+        if (!window.count(id) || window[id] != currentWindow) {
+            window[id] = currentWindow;
+            count[id] = 0;
+        }
 
-        long long now=
-            chrono::duration_cast<chrono::seconds>(
-                chrono::system_clock::now().time_since_epoch()
-            ).count();
-
-        queue<long long>& log=requestLog[userId];
-
-        while(!log.empty() &&
-              now-log.front()>=config.getWindowInSeconds())
-            log.pop();
-
-        if((int)log.size()<config.getMaxRequests()){
-            log.push(now);
+        if (count[id] < config.maxRequests) {
+            count[id]++;
             return true;
         }
 
@@ -163,88 +114,85 @@ public:
     }
 };
 
-
-class RateLimiterFactory{
+// ---------- 3. SLIDING WINDOW LOG ----------
+class SlidingWindowLog : public RateLimiter {
+    unordered_map<string, queue<long long>> logs;
 
 public:
+    SlidingWindowLog(RateLimitConfig c) : RateLimiter(c) {}
 
-    static unique_ptr<RateLimiter>
-    createRateLimiter(RateLimitType type,
-                      const RateLimitConfig& config){
+    bool allowRequest(string id) override {
+        long long now = nowMs() / 1000;
+        auto& q = logs[id];
 
-        switch(type){
-
-        case RateLimitType::TOKEN_BUCKET:
-            return make_unique<TokenBucketRateLimiter>(config);
-
-        case RateLimitType::FIXED_WINDOW:
-            return make_unique<FixedWindowRateLimiter>(config);
-
-        case RateLimitType::SLIDING_WINDOW_LOG:
-            return make_unique<SlidingWindowLogRateLimiter>(config);
-
-        default:
-            return nullptr;
+        // Remove expired requests
+        while (!q.empty() &&
+               now - q.front() >= config.windowSeconds) {
+            q.pop();
         }
+
+        // Allow if below limit
+        if (q.size() < config.maxRequests) {
+            q.push(now);
+            return true;
+        }
+
+        return false;
     }
 };
 
+// ---------- FACTORY ----------
+class RateLimiterFactory {
+public:
+    static unique_ptr<RateLimiter> create(
+        RateLimitType type, RateLimitConfig config) {
 
-class RateLimiterService{
+        if (type == RateLimitType::TOKEN_BUCKET)
+            return make_unique<TokenBucket>(config);
 
-    unordered_map<UserTier,unique_ptr<RateLimiter>> limiters;
+        if (type == RateLimitType::FIXED_WINDOW)
+            return make_unique<FixedWindow>(config);
+
+        return make_unique<SlidingWindowLog>(config);
+    }
+};
+
+// ---------- SERVICE ----------
+class RateLimiterService {
+    unordered_map<UserTier, unique_ptr<RateLimiter>> limiters;
 
 public:
-
-    RateLimiterService(){
-
-        limiters[UserTier::FREE]=
-            RateLimiterFactory::createRateLimiter(
+    RateLimiterService() {
+        limiters[UserTier::FREE] =
+            RateLimiterFactory::create(
                 RateLimitType::TOKEN_BUCKET,
-                RateLimitConfig(10,60));
+                RateLimitConfig(10, 60));
 
-        limiters[UserTier::PREMIUM]=
-            RateLimiterFactory::createRateLimiter(
+        limiters[UserTier::PREMIUM] =
+            RateLimiterFactory::create(
                 RateLimitType::FIXED_WINDOW,
-                RateLimitConfig(100,60));
+                RateLimitConfig(100, 60));
     }
 
-    bool allowRequest(const User& user){
-
-        return limiters[user.getTier()]
-            ->allowRequest(user.getUserId());
+    bool allowRequest(const User& user) {
+        return limiters.at(user.getTier())->allowRequest(user.getId());
     }
 };
 
-
-int main(){
-
+// ---------- MAIN ----------
+int main() {
     RateLimiterService service;
 
-    User freeUser("user1",UserTier::FREE);
-    User premiumUser("user2",UserTier::PREMIUM);
+    User freeUser("user1", UserTier::FREE);
+    User premiumUser("user2", UserTier::PREMIUM);
 
-    cout<<"===== FREE USER ====="<<endl;
+    for (int i = 1; i <= 15; i++)
+        cout << "Free " << i << ": "
+             << (service.allowRequest(freeUser) ? "ALLOWED" : "BLOCKED")
+             << '\n';
 
-    for(int i=1;i<=15;i++){
-
-        bool allowed=service.allowRequest(freeUser);
-
-        cout<<"Request "<<i<<" : "
-            <<(allowed?"ALLOWED":"BLOCKED")
-            <<endl;
-    }
-
-    cout<<"\n===== PREMIUM USER ====="<<endl;
-
-    for(int i=1;i<=105;i++){
-
-        bool allowed=service.allowRequest(premiumUser);
-
-        cout<<"Request "<<i<<" : "
-            <<(allowed?"ALLOWED":"BLOCKED")
-            <<endl;
-    }
-
-    return 0;
+    for (int i = 1; i <= 105; i++)
+        cout << "Premium " << i << ": "
+             << (service.allowRequest(premiumUser) ? "ALLOWED" : "BLOCKED")
+             << '\n';
 }
