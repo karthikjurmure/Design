@@ -347,3 +347,181 @@ int main() {
     
     return 0;
 }
+
+
+//////////////////
+//////////////////
+///////////////
+//without state design pattern using simple switch state
+#include <iostream>
+#include <string>
+using namespace std;
+
+enum State { NO_COIN, HAS_COIN, DISPENSING, SOLD_OUT };
+
+class VendingMachine {
+private:
+    State state;
+    int items;
+    int price;
+    int balance;
+
+public:
+    VendingMachine(int items, int price) {
+        this->items = items;
+        this->price = price;
+        balance = 0;
+        state = (items > 0) ? NO_COIN : SOLD_OUT;
+    }
+
+    void insertCoin(int coin) {
+        switch (state) {
+            case NO_COIN:
+                balance = coin;
+                cout << "Coin inserted. Balance: Rs " << balance << endl;
+                state = HAS_COIN;
+                break;
+            case HAS_COIN:
+                balance += coin;
+                cout << "Additional coin inserted. Balance: Rs " << balance << endl;
+                break;
+            case DISPENSING:
+                cout << "Please wait, dispensing. Coin returned: Rs " << coin << endl;
+                break;
+            case SOLD_OUT:
+                cout << "Sold out. Coin returned: Rs " << coin << endl;
+                break;
+        }
+    }
+
+    void selectItem() {
+        switch (state) {
+            case NO_COIN:
+                cout << "Please insert coin first!" << endl;
+                break;
+            case HAS_COIN:
+                if (balance >= price) {
+                    cout << "Item selected. Dispensing..." << endl;
+                    if (balance > price)
+                        cout << "Change returned: Rs " << balance - price << endl;
+                    balance = 0;
+                    state = DISPENSING;
+                } else {
+                    cout << "Insufficient funds. Need Rs " << price - balance << " more." << endl;
+                }
+                break;
+            case DISPENSING:
+                cout << "Already dispensing. Please wait." << endl;
+                break;
+            case SOLD_OUT:
+                cout << "Machine is sold out!" << endl;
+                break;
+        }
+    }
+
+    void dispense() {
+        switch (state) {
+            case NO_COIN:
+                cout << "Please insert coin and select item first!" << endl;
+                break;
+            case HAS_COIN:
+                cout << "Please select an item first!" << endl;
+                break;
+            case DISPENSING:
+                cout << "Item dispensed!" << endl;
+                items--;
+                if (items > 0) {
+                    state = NO_COIN;
+                } else {
+                    cout << "Machine is now sold out!" << endl;
+                    state = SOLD_OUT;
+                }
+                break;
+            case SOLD_OUT:
+                cout << "Machine is sold out!" << endl;
+                break;
+        }
+    }
+
+    void returnCoin() {
+        switch (state) {
+            case NO_COIN:
+                cout << "No coin to return!" << endl;
+                break;
+            case HAS_COIN:
+                cout << "Coin returned: Rs " << balance << endl;
+                balance = 0;
+                state = NO_COIN;
+                break;
+            case DISPENSING:
+                cout << "Cannot return coin while dispensing!" << endl;
+                break;
+            case SOLD_OUT:
+                cout << "Sold out. No coin inserted." << endl;
+                break;
+        }
+    }
+
+    void refill(int quantity) {
+        if (state == NO_COIN || state == SOLD_OUT) {
+            cout << "Items refilling" << endl;
+            items += quantity;
+            state = NO_COIN;
+        } else {
+            cout << "Can't refill in this state" << endl;
+        }
+    }
+
+    void printStatus() {
+        string names[] = {"NO_COIN", "HAS_COIN", "DISPENSING", "SOLD_OUT"};
+        cout << "\n--- Status ---" << endl;
+        cout << "Items remaining: " << items << endl;
+        cout << "Inserted coin: Rs " << balance << endl;
+        cout << "Current state: " << names[state] << endl << endl;
+    }
+};
+
+int main() {
+    cout << "=== Water Bottle VENDING MACHINE ===" << endl;
+    VendingMachine machine(2, 20);
+    machine.printStatus();
+
+    cout << "1. Select without coin:" << endl;
+    machine.selectItem();
+    machine.printStatus();
+
+    cout << "2. Insert coin:" << endl;
+    machine.insertCoin(10);
+    machine.printStatus();
+
+    cout << "3. Select with insufficient funds:" << endl;
+    machine.selectItem();
+    machine.printStatus();
+
+    cout << "4. Add more coins:" << endl;
+    machine.insertCoin(10);
+    machine.printStatus();
+
+    cout << "5. Select item now:" << endl;
+    machine.selectItem();
+    machine.printStatus();
+
+    cout << "6. Dispense:" << endl;
+    machine.dispense();
+    machine.printStatus();
+
+    cout << "7. Buy last item:" << endl;
+    machine.insertCoin(20);
+    machine.selectItem();
+    machine.dispense();
+    machine.printStatus();
+
+    cout << "8. Use sold out machine:" << endl;
+    machine.insertCoin(5);
+
+    cout << "9. Refill:" << endl;
+    machine.refill(2);
+    machine.printStatus();
+
+    return 0;
+}
