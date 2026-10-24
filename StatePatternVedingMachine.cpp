@@ -1,353 +1,184 @@
 #include <iostream>
 #include <string>
-
 using namespace std;
-
-// Forward declaration
 class VendingMachine;
-
-// Forward declarations for concrete states
-class NoCoinState;
-class HasCoinState;
-class DispenseState;
-class SoldOutState;
-
-// Abstract State Interface
 class VendingState {
 public:
-    virtual VendingState* insertCoin(VendingMachine* machine, int coin) = 0;
-    virtual VendingState* selectItem(VendingMachine* machine) = 0;
-    virtual VendingState* dispense(VendingMachine* machine) = 0;
-    virtual VendingState* returnCoin(VendingMachine* machine) = 0;
-    virtual VendingState* refill(VendingMachine* machine, int quantity) = 0;
-    virtual string getStateName() = 0;
+	virtual VendingState* insertCoin(VendingMachine* m, int coin) = 0;
+	virtual VendingState* selectItem(VendingMachine* m) = 0;
+	virtual VendingState* dispense(VendingMachine* m) = 0;
+	virtual VendingState* returnCoin(VendingMachine* m) = 0;
+	virtual VendingState* refill(VendingMachine* m, int qty) = 0;
+	virtual string name() = 0;
+	virtual ~VendingState() {}
 };
-
-// Context Class - Vending Machine
-class VendingMachine {
-private:
-    VendingState* currentState;
-    int itemCount;
-    int itemPrice;
-    int  insertedCoins;
-    
-    // State objects (we'll initialize these)
-    VendingState* noCoinState;
-    VendingState* hasCoinState;
-    VendingState* dispenseState;
-    VendingState* soldOutState;
-    
+class VendingMachine{
 public:
-    VendingMachine(int itemCount, int itemPrice);
-    
-    // Delegate to current state and update state based on return value
-    void insertCoin(int coin);
-    void selectItem();
-    void dispense();
-    void returnCoin();
-    void refill(int quantity);
-        
-    // Print the status of Vending Machine
-    void printStatus();
-    
-    // Getters for states
-    VendingState* getNoCoinState() { 
-        return noCoinState;
+    int items;
+    int price;
+    int balance;
+    VendingState* noCoin;
+    VendingState* hasCoin;
+    VendingState* dispensing;
+    VendingState* soldOut;
+    VendingState* current;
+    VendingMachine(int items, int price); 
+    ~VendingMachine() {
+        delete noCoin; delete hasCoin; delete dispensing; delete soldOut;
     }
-    VendingState* getHasCoinState() { 
-        return hasCoinState;
-    }
-    VendingState* getDispenseState() { 
-        return dispenseState; 
-    }
-    VendingState* getSoldOutState() { 
-        return soldOutState;
-    }
-    
-    // Data access methods
-    int getItemCount() { 
-        return itemCount; 
-    }
-    void decrementItemCount() { 
-        itemCount--; 
-    }
-    void incrementItemCount(int count = 1) {
-        itemCount += count;
-    }
-    int getInsertedCoin() { 
-        return insertedCoins;
-    }
-    void setInsertedCoin(int coin) { 
-        insertedCoins = coin;
-    }
-    void addCoin(int coin) { 
-        insertedCoins += coin;
-    }
-    int getPrice() {
-        return this->itemPrice;
-    }
-    void setPrice(int itemPrice) {
-        this->itemPrice = itemPrice;
+   void insertCoin(int coin) { current = current->insertCoin(this, coin); }
+    void selectItem()         { current = current->selectItem(this); }
+    void dispense()           { current = current->dispense(this); }
+    void returnCoin()         { current = current->returnCoin(this); }
+    void refill(int qty)      { current = current->refill(this, qty); }
+
+    void printStatus() {
+        cout << "[Items: " << items << " | Balance: Rs " << balance
+             << " | State: " << current->name() << "]\n\n";
     }
 };
-
-// Concrete State: No Coin Inserted
 class NoCoinState : public VendingState {
 public:
-    VendingState* insertCoin(VendingMachine* machine, int coin) override {
-        machine->setInsertedCoin(coin); // Rs 10
-        cout << "Coin inserted. Current balance: Rs " << coin <<endl;
-        return machine->getHasCoinState(); // Transition to HasCoinState
+    VendingState* insertCoin(VendingMachine* m, int coin) override {
+        m->balance = coin;
+        cout << "Coin inserted. Balance: Rs " << m->balance << endl;
+        return m->hasCoin;                       // move to HAS_COIN
     }
-    
-    VendingState* selectItem(VendingMachine* machine) override {
-       cout << "Please insert coin first!" <<endl;
-        return machine->getNoCoinState(); // Stay in same state
+    VendingState* selectItem(VendingMachine* m) override {
+        cout << "Insert coin first!" << endl;
+        return this;
     }
-    
-    VendingState* dispense(VendingMachine* machine) override {
-       cout << "Please insert coin and select item first!" <<endl;
-        return machine->getNoCoinState(); // Stay in same state
+    VendingState* dispense(VendingMachine* m) override {
+        cout << "Insert coin and select item first!" << endl;
+        return this;
     }
-    
-    VendingState* returnCoin(VendingMachine* machine) override {
-       cout << "No coin to return!" <<endl;
-        return machine->getNoCoinState(); // Stay in same state
+    VendingState* returnCoin(VendingMachine* m) override {
+        cout << "No coin to return!" << endl;
+        return this;
     }
-
-    VendingState* refill(VendingMachine* machine, int quantity) override {
-        cout << "Items refilling" <<endl;
-        machine->incrementItemCount(quantity);
-        return machine->getNoCoinState(); // Stay in same state
+    VendingState* refill(VendingMachine* m, int qty) override {
+        m->items += qty;
+        cout << "Refilled. Items: " << m->items << endl;
+        return this;
     }
-    
-   string getStateName() override {
-        return "NO_COIN";
-    }
+    string name() override { return "NO_COIN"; }
 };
-
-// Concrete State: Coin Inserted
 class HasCoinState : public VendingState {
 public:
-    VendingState* insertCoin(VendingMachine* machine, int coin) override {
-        machine->addCoin(coin);
-        cout << "Additional coin inserted. Current balance: Rs " << machine->getInsertedCoin() <<endl;
-        return machine->getHasCoinState(); // Stay in same state
+    VendingState* insertCoin(VendingMachine* m, int coin) override {
+        m->balance += coin;
+        cout << "More coin added. Balance: Rs " << m->balance << endl;
+        return this;
     }
-    
-    VendingState* selectItem(VendingMachine* machine) override {
-        if (machine->getInsertedCoin() >= machine->getPrice()) {
-           cout << "Item selected. Dispensing..." <<endl;
-            
-            int change = machine->getInsertedCoin() - machine->getPrice();
-            if (change > 0) {
-               cout << "Change returned: Rs " << change <<endl;
-            }
-            machine->setInsertedCoin(0);
-            
-            return machine->getDispenseState(); // Transition to DispenseState
-        } 
-        else {
-            int needed = machine->getPrice() - machine->getInsertedCoin();
-            cout << "Insufficient funds. Need Rs " << needed << " more." <<endl;
-            return machine->getHasCoinState(); // Stay in same state
+    VendingState* selectItem(VendingMachine* m) override {
+        if (m->balance >= m->price) {
+            int change = m->balance - m->price;
+            if (change > 0) cout << "Change returned: Rs " << change << endl;
+            m->balance = 0;
+            cout << "Item selected. Dispensing..." << endl;
+            return m->dispensing;                // move to DISPENSING
         }
+        cout << "Need Rs " << m->price - m->balance << " more." << endl;
+        return this;
     }
-    
-    VendingState* dispense(VendingMachine* machine) override {
-       cout << "Please select an item first!" <<endl;
-        return machine->getHasCoinState(); // Stay in same state
+    VendingState* dispense(VendingMachine* m) override {
+        cout << "Select an item first!" << endl;
+        return this;
     }
-    
-    VendingState* returnCoin(VendingMachine* machine) override {
-       cout << "Coin returned: Rs " << machine->getInsertedCoin() <<endl;
-        machine->setInsertedCoin(0);
-        return machine->getNoCoinState(); // Transition to NoCoinState
+    VendingState* returnCoin(VendingMachine* m) override {
+        cout << "Coin returned: Rs " << m->balance << endl;
+        m->balance = 0;
+        return m->noCoin;                        // back to NO_COIN
     }
-
-    VendingState* refill(VendingMachine* machine, int quantity) override {
-        cout << "Can't refil in this state" <<endl;
-        return machine->getHasCoinState(); // Stay in same state
+    VendingState* refill(VendingMachine* m, int qty) override {
+        cout << "Can't refill in this state." << endl;
+        return this;
     }
-    
-   string getStateName() override {
-        return "HAS_COIN";
-    }
+    string name() override { return "HAS_COIN"; }
 };
-
-// Concrete State: Item Sold
 class DispenseState : public VendingState {
 public:
-    VendingState* insertCoin(VendingMachine* machine, int coin) override {
-       cout << "Please wait, already dispensing item. Coin returned: Rs " << coin <<endl;
-        return machine->getDispenseState();  // Stay in same state
+    VendingState* insertCoin(VendingMachine* m, int coin) override {
+        cout << "Dispensing, please wait. Coin returned: Rs " << coin << endl;
+        return this;
     }
-    
-    VendingState* selectItem(VendingMachine* machine) override {
-       cout << "Already dispensing item. Please wait." <<endl;
-        return machine->getDispenseState(); // Stay in same state
+    VendingState* selectItem(VendingMachine* m) override {
+        cout << "Already dispensing, please wait." << endl;
+        return this;
     }
-    
-    VendingState* dispense(VendingMachine* machine) override {
-       cout << "Item dispensed!" <<endl;
-        machine->decrementItemCount();
-        
-        if (machine->getItemCount() > 0) {
-            return machine->getNoCoinState(); // Transition to NoCoinState
-        } 
-        else {
-           cout << "Machine is now sold out!" <<endl;
-            return machine->getSoldOutState(); // Transition to SoldOutState
-        }
+    VendingState* dispense(VendingMachine* m) override {
+        m->items--;
+        cout << "Item dispensed!" << endl;
+        if (m->items > 0) return m->noCoin;      // items left
+        cout << "Machine is now sold out!" << endl;
+        return m->soldOut;                       // no items left
     }
-    
-    VendingState* returnCoin(VendingMachine* machine) override {
-       cout << "Cannot return coin while dispensing item!" <<endl;
-        return machine->getDispenseState(); // Stay in same state
+    VendingState* returnCoin(VendingMachine* m) override {
+        cout << "Can't return coin while dispensing." << endl;
+        return this;
     }
-
-    VendingState* refill(VendingMachine* machine, int quantity) override {
-        cout << "Can't refil in this state" <<endl;
-        return machine->getDispenseState(); // Stay in same state
+    VendingState* refill(VendingMachine* m, int qty) override {
+        cout << "Can't refill in this state." << endl;
+        return this;
     }
-
-   string getStateName() override {
-        return "DISPENSING";
-    }
+    string name() override { return "DISPENSING"; }
 };
-
-// Concrete State: Sold Out
 class SoldOutState : public VendingState {
 public:
-    VendingState* insertCoin(VendingMachine* machine, int coin) override {
-       cout << "Machine is sold out. Coin returned: Rs " << coin <<endl;
-        return machine->getSoldOutState(); // Stay in same state
+    VendingState* insertCoin(VendingMachine* m, int coin) override {
+        cout << "Sold out. Coin returned: Rs " << coin << endl;
+        return this;
     }
-    
-    VendingState* selectItem(VendingMachine* machine) override {
-       cout << "Machine is sold out!" <<endl;
-        return machine->getSoldOutState(); // Stay in same state
+    VendingState* selectItem(VendingMachine* m) override {
+        cout << "Sold out!" << endl;
+        return this;
     }
-    
-    VendingState* dispense(VendingMachine* machine) override {
-       cout << "Machine is sold out!" <<endl;
-        return machine->getSoldOutState(); // Stay in same state
+    VendingState* dispense(VendingMachine* m) override {
+        cout << "Sold out!" << endl;
+        return this;
     }
-    
-    VendingState* returnCoin(VendingMachine* machine) override {
-       cout << "Machine is sold out. No coin inserted." <<endl;
-        return machine->getSoldOutState(); // Stay in same state
+    VendingState* returnCoin(VendingMachine* m) override {
+        cout << "Sold out. No coin inserted." << endl;
+        return this;
     }
-
-    VendingState* refill(VendingMachine* machine, int quantity) override {
-        cout << "Items refilling" <<endl;
-        machine->incrementItemCount(quantity);
-        return machine->getNoCoinState();
+    VendingState* refill(VendingMachine* m, int qty) override {
+        m->items += qty;
+        cout << "Refilled. Items: " << m->items << endl;
+        return m->noCoin;                        // back in business
     }
-    
-   string getStateName() override {
-        return "SOLD_OUT";
-    }
+    string name() override { return "SOLD_OUT"; }
 };
+VendingMachine::VendingMachine(int items, int price) {
+    this->items = items;
+    this->price = price;
+    balance = 0;
 
-// VendingMachine implementation (after all classes are defined)
-VendingMachine::VendingMachine(int itemCount, int itemPrice) {
+    noCoin     = new NoCoinState();
+    hasCoin    = new HasCoinState();
+    dispensing = new DispenseState();
+    soldOut    = new SoldOutState();
 
-    this->itemCount = itemCount;
-    this->itemPrice = itemPrice;
-    this->insertedCoins = 0; 
-    
-    // Create state objects
-    noCoinState = new NoCoinState();
-    hasCoinState = new HasCoinState();
-    dispenseState = new DispenseState();
-    soldOutState = new SoldOutState();
-    
-    // Set initial state
-    if (itemCount  > 0) {
-        currentState = noCoinState;
-    } else {
-        currentState = soldOutState;
-    }
+    current = (items > 0) ? noCoin : soldOut;
 }
-
-void VendingMachine::insertCoin(int coin) {
-    currentState = currentState->insertCoin(this, coin);
-}
-
-void VendingMachine::selectItem() {
-    currentState = currentState->selectItem(this);
-}
-
-void VendingMachine::dispense() {
-    currentState = currentState->dispense(this);
-}
-
-void VendingMachine::returnCoin() {
-    currentState = currentState->returnCoin(this);
-}
-
-void VendingMachine::refill(int quantity) {
-    currentState = currentState->refill(this, quantity);
-}
-
-void VendingMachine::printStatus() {
-    cout << "\n--- Vending Machine Status ---" << endl;
-    cout << "Items remaining: " << itemCount << endl;
-    cout << "Inserted coin: Rs " << insertedCoins << endl;
-    cout << "Current state: " << currentState->getStateName() << endl << endl;
-}
-
 int main() {
-    cout << "=== Water Bottle VENDING MACHINE ===" <<endl;
-    
-    int itemCount = 2;
-    int itemPrice = 20;
+    VendingMachine machine(2, 20);
+    machine.printStatus();
 
-    VendingMachine machine(itemCount, itemPrice);
-    machine.printStatus();
-    
-    // Test scenarios - each operation potentially changes state
-    cout << "1. Trying to select item without coin:" <<endl;
-    machine.selectItem();  // Should ask for coin, no state change
-    machine.printStatus();
-    
-    cout << "2. Inserting coin:" <<endl;
-    machine.insertCoin(10);  // State changes to HAS_COIN
-    machine.printStatus();
-    
-    cout << "3. Selecting item with insufficient funds:" <<endl;
-    machine.selectItem();  // Insufficient funds, stays in HAS_COIN
-    machine.printStatus();
-    
-    cout << "4. Adding more coins:" <<endl;
-    machine.insertCoin(10);  // Add more money, stays in HAS_COIN
-    machine.printStatus();
-    
-    cout << "5. Selecting item Now" <<endl;
-    machine.selectItem();  // State changes to SOLD
-    machine.printStatus();
-    
-    cout << "6. Dispensing item:" <<endl;
-    machine.dispense(); // State changes to NO_COIN (items remaining)
-    machine.printStatus();
-    
-    cout << "7. Buying last item:" <<endl;
-    machine.insertCoin(20);  // State changes to HAS_COIN
-    machine.selectItem();  // State changes to SOLD
-    machine.dispense(); // State changes to SOLD_OUT (no items left)
-    machine.printStatus();
-    
-    cout << "8. Trying to use sold out machine:" <<endl;
-    machine.insertCoin(5);  // Coin returned, stays in SOLD_OUT
+    machine.selectItem();     machine.printStatus();   // no coin yet
+    machine.insertCoin(10);   machine.printStatus();   // -> HAS_COIN
+    machine.selectItem();     machine.printStatus();   // not enough money
+    machine.insertCoin(10);   machine.printStatus();   // balance 20
+    machine.selectItem();     machine.printStatus();   // -> DISPENSING
+    machine.dispense();       machine.printStatus();   // -> NO_COIN (1 item left)
 
-    cout << "9. Trying to use sold out machine:" <<endl;
-    machine.refill(2);
-    machine.printStatus(); // State changes NO_COIN
-    
+    machine.insertCoin(20);
+    machine.selectItem();
+    machine.dispense();       machine.printStatus();   // -> SOLD_OUT
+
+    machine.insertCoin(5);                             // coin rejected
+    machine.refill(2);        machine.printStatus();   // -> NO_COIN
     return 0;
 }
-
 
 //////////////////
 //////////////////
