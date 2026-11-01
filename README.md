@@ -2,7 +2,8 @@
 <img width="2720" height="3900" alt="vending_machine_inventory_class_diagram" src="https://github.com/user-attachments/assets/a7ed1b62-ed8d-4cd3-b5a8-ecd88da9a281" />
 <img width="2720" height="3460" alt="vending_machine_state_pattern_class_diagram" src="https://github.com/user-attachments/assets/a30725a7-7caf-4987-af87-f21dd006ef92" />
 <img width="2720" height="2140" alt="snake_game_class_diagram" src="https://github.com/user-attachments/assets/69639830-e333-443f-abb7-b8ac1b18334d" />
-<img width="2728" height="4060" alt="parking_lot_class_diagram" src="https://github.com/user-attachments/assets/e5c732a6-5252-465c-8422-ca29fcaea009" />
+<img width="1222" height="575" alt="parking_lot_image" src="https://github.com/user-attachments/assets/3883ffdf-56c3-4217-8c56-346f71b301c4" />
+
 <img width="1220" height="896" alt="meeting_room_image" src="https://github.com/user-attachments/assets/41a003e2-d6f5-404b-9eb1-cac80ef45871" />
 
 <img width="2720" height="3580" alt="inventory_management_class_diagram" src="https://github.com/user-attachments/assets/31f7df9c-fd39-4863-84af-62fb2186bbd9" />
