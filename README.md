@@ -3,7 +3,8 @@
 <img width="2720" height="3460" alt="vending_machine_state_pattern_class_diagram" src="https://github.com/user-attachments/assets/a30725a7-7caf-4987-af87-f21dd006ef92" />
 <img width="2720" height="2140" alt="snake_game_class_diagram" src="https://github.com/user-attachments/assets/69639830-e333-443f-abb7-b8ac1b18334d" />
 <img width="2728" height="4060" alt="parking_lot_class_diagram" src="https://github.com/user-attachments/assets/e5c732a6-5252-465c-8422-ca29fcaea009" />
-<img width="2720" height="3500" alt="meeting_room_booking_class_diagram" src="https://github.com/user-attachments/assets/2bf1ee30-5a3b-4fdb-a106-8c365d9556c0" />
+<img width="1220" height="896" alt="meeting_room_image" src="https://github.com/user-attachments/assets/41a003e2-d6f5-404b-9eb1-cac80ef45871" />
+
 <img width="2720" height="3580" alt="inventory_management_class_diagram" src="https://github.com/user-attachments/assets/31f7df9c-fd39-4863-84af-62fb2186bbd9" />
 <img width="2720" height="3000" alt="chess_game_class_diagram" src="https://github.com/user-attachments/assets/c2568d95-5500-4aa1-8c07-5f98744111a5" />
 <img width="1536" height="1024" alt="Tic-Tac-Toe UML Class Diagram" src="https://github.com/user-attachments/assets/9a00baf6-d322-41cb-9670-6202394a873c" />
